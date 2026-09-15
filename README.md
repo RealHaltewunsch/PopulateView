@@ -4,13 +4,12 @@ Automatic assembly drawings for KiCad: top, bottom or both sides, with component
 outlines, readable reference designators and optional DNP markings. Drawings are
 stored directly in the board and can be exported as Gerber files.
 
-Open-source KiCad Action Plugin using the SWIG runtime. The plugin interface is
-currently in German; this guide describes its controls in English.
-MIT licensed. Testing release **0.2.0**.
+Open-source KiCad Action Plugin using the SWIG runtime, with an English interface.
+MIT licensed. Testing release **0.2.1**.
 
 ## Installation
 
-1. Download `PopulateView-0.2.0-pcm.zip` from
+1. Download `PopulateView-0.2.1-pcm.zip` from
    [Releases](https://github.com/RealHaltewunsch/PopulateView/releases).
 2. Open the **Plugin and Content Manager** in the KiCad project manager,
    choose **Install from File** and select the ZIP archive.

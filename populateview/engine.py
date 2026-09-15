@@ -72,28 +72,28 @@ def layer_plan(board, sides, replace):
         groups = [g for g in board.Groups() if g.GetName() == GROUPS[side]]
         matches = [l for l in layers if board.GetLayerName(l) == NAMES[side]]
         if len(groups) > 1 or len(matches) > 1:
-            raise PlanError("Mehrdeutige PopulateView-Gruppen oder Layer. Bitte zuerst bereinigen.")
+            raise PlanError("Ambiguous PopulateView groups or layers. Please resolve duplicates first.")
         group = groups[0] if groups else None
         owned = list(group.GetItems()) if group else []
         owned_ids = {uid(i) for i in owned}
         if group and not matches:
-            raise PlanError("Ein PopulateView-Layer wurde umbenannt. Originalnamen wiederherstellen.")
+            raise PlanError("A PopulateView layer was renamed. Please restore its original name.")
         if matches:
             layer = matches[0]
             if any(not isinstance(i, (pcb.PCB_SHAPE, pcb.PCB_TEXT))
                    or i.GetLayer() != layer for i in owned):
-                raise PlanError("Die Plugin-Gruppe enthält fremde oder verschobene Objekte.")
+                raise PlanError("The plugin group contains unrelated objects or objects moved to another layer.")
             foreign = [i for i in items if i.IsOnLayer(layer) and uid(i) not in owned_ids]
             if foreign:
-                raise PlanError("Fremde Objekte auf " + NAMES[side] + ". Bitte auf einen anderen Layer verschieben.")
+                raise PlanError("Unrelated objects on " + NAMES[side] + ". Please move them to another layer.")
             if group and not replace:
-                raise PlanError("Bestückungsplan existiert bereits. Aktualisieren aktivieren.")
+                raise PlanError("An assembly drawing already exists. Enable the update / replace option.")
         else:
             available = [l for l in layers if l not in reserved
                          and board.GetLayerName(l) == board.GetStandardLayerName(l)
                          and not any(i.IsOnLayer(l) for i in items)]
             if not available:
-                raise PlanError("Kein freier User-Layer verfügbar. Zwei User-Layer freigeben.")
+                raise PlanError("No free user layer is available. Free up user layers for the selected sides.")
             layer = available[0]
         reserved.add(layer)
         plans[side] = (layer, group, owned)
@@ -105,7 +105,7 @@ def clone_shape(source, board, layer, centre, mirror):
     shape.SetParent(board)
     shape.SetParentGroup(None)
     if uid(shape) == uid(source):
-        raise PlanError("KiCad hat beim Kopieren keine neue Objekt-ID erzeugt.")
+        raise PlanError("KiCad did not assign a new object ID when copying a shape.")
     shape.SetLayer(layer)
     shape.SetLocked(False)
     if mirror:
@@ -158,7 +158,7 @@ def fit_label(board, layer, value, shapes, anchor, angle):
     inner = (body[0] + margin, body[1] + margin,
              body[2] - margin, body[3] - margin)
     if inner[2] <= inner[0] or inner[3] <= inner[1]:
-        raise PlanError("Kein beschriftbarer Innenbereich für " + value)
+        raise PlanError("No usable interior area for label: " + value)
     centre = point((inner[0] + inner[2]) / 2, (inner[1] + inner[3]) / 2)
     item = text(board, layer, value, centre)
     # Along either footprint axis, choose the largest size (up to 5 mm).
@@ -184,7 +184,7 @@ def fit_label(board, layer, value, shapes, anchor, angle):
             best = (winner, local_angle)
     height, local_angle = best
     if not height:
-        raise PlanError("Text passt selbst bei minimaler Größe nicht in " + value)
+        raise PlanError("Text does not fit even at the smallest size: " + value)
     item.SetTextSize(point(height, height))
     item.SetTextThickness(max(1, round(height * .12)))
     item.SetTextAngle(pcb.EDA_ANGLE(local_angle, pcb.DEGREES_T))
@@ -259,18 +259,18 @@ def generate(board, options):
     """Return counts after an all-or-nothing update of selected document layers."""
     version = re.match(r"(\d+)", pcb.Version())
     if not version or int(version.group(1)) not in (9, 10):
-        raise PlanError("PopulateView benötigt KiCad 9 oder 10 mit Python-Action-Plugins.")
+        raise PlanError("PopulateView requires KiCad 9 or 10 with Python Action Plugins.")
     if board is None or not board.GetFileName() or not Path(board.GetFileName()).is_file():
-        raise PlanError("Bitte die Platine zuerst als .kicad_pcb speichern.")
+        raise PlanError("Please save the board as a .kicad_pcb file first.")
     if not options.sides or len(set(options.sides)) != len(options.sides) or any(s not in NAMES for s in options.sides):
-        raise PlanError("Ungültige Seitenauswahl.")
+        raise PlanError("Invalid side selection.")
     edges = [s for s in board.GetDrawings() if isinstance(s, pcb.PCB_SHAPE)
              and s.GetLayer() == pcb.Edge_Cuts]
     for fp in board.GetFootprints():
         edges.extend(s for s in fp.GraphicalItems()
                      if isinstance(s, pcb.PCB_SHAPE) and s.GetLayer() == pcb.Edge_Cuts)
     if not edges:
-        raise PlanError("Keine Platinenkontur auf Edge.Cuts gefunden.")
+        raise PlanError("No board outline found on Edge.Cuts.")
     plans = layer_plan(board, options.sides, options.replace)
     staged = {s: stage_side(board, s, plans[s][0], edges, options.mark_dnp) for s in options.sides}
     enabled = pcb.LSET(board.GetEnabledLayers())
@@ -286,7 +286,7 @@ def generate(board, options):
         board.SetVisibleLayers(new_visible)
         for side, (layer, old_group, old_items) in plans.items():
             if not board.SetLayerName(layer, NAMES[side]):
-                raise PlanError("Dokumentationslayer konnte nicht benannt werden.")
+                raise PlanError("Could not name the documentation layer.")
             if old_group:
                 for item in old_items:
                     old_group.RemoveItem(item)

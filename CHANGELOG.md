@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- Translate the complete plugin interface, messages and menu entry into English.
+- Use English labels for confirmation and cancellation buttons.
+- Include the English README in installation packages. Continue using SWIG.
+
 ## 0.2.0
 
 - Adaptive font size and proportional stroke width per footprint.

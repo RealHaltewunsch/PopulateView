@@ -173,11 +173,11 @@ class EngineTest(unittest.TestCase):
         from populateview.plugin import PopulateViewPlugin, PlanDialog
         with patch.object(PlanDialog, "ShowModal", return_value=wx.ID_OK), \
                 patch("pcbnew.GetBoard", return_value=self.board), \
-                patch("pcbnew.Refresh"), patch("wx.MessageBox") as message:
+                patch("pcbnew.Refresh"), patch("populateview.plugin.show_message") as message:
             plugin = PopulateViewPlugin()
             plugin.Run()
         self.assertEqual(len(list(self.board.Groups())), 2)
-        self.assertIn("Pläne erzeugt", message.call_args[0][0])
+        self.assertIn("Drawings generated", message.call_args[0][0])
 
     def test_front_update_preserves_back(self):
         generate(self.board, Options())

@@ -1,28 +1,15 @@
-## PopulateView 0.2.0 – Adaptive Beschriftung
+## PopulateView 0.2.1 – English interface
 
-Schriftgröße und Strichstärke passen sich jetzt dem Bauteilrechteck und der
-tatsächlichen Textlänge an, einschließlich DNP. Kleine Bauteile erhalten kleine
-Schrift, große bis zu 5 mm große Schrift. Gedrehte Footprints werden entlang
-ihrer eigenen Achsen gemessen. Externe Beschriftungen entfallen.
+The complete plugin interface is now in English, including the menu entry,
+side selection, options, help text, confirmation buttons, results and errors.
+Installation packages also include the fully English README.
 
-- Automatische Referenzplatzierung und optionale `[DNP]`-Kennzeichnung.
-- Unterseite als gespiegelte Bauteilansicht mit normal lesbarer Schrift.
-- Gezieltes Aktualisieren eigener Gruppen mit Bestätigung und Fehler-Rollback.
-- Gerber-Export über KiCads normalen Plotdialog.
+PopulateView continues to use SWIG for KiCad 9/10. Adaptive text sizing,
+DNP markings, bottom-view orientation and drawing updates are unchanged.
 
-Installation: `PopulateView-0.2.0-pcm.zip` im KiCad Plugin and Content Manager
-über **Aus Datei installieren** öffnen. Alternativ das `manual.zip` verwenden.
-Das automatisch von GitHub angebotene Source-code-ZIP ist kein PCM-Paket.
+Install `PopulateView-0.2.1-pcm.zip` through **Install from File** in KiCad's
+Plugin and Content Manager, then restart the PCB editor. A manual installation
+ZIP is also available. GitHub's source code ZIP is not a PCM package.
 
-Getestet mit KiCad 10.0.3 auf macOS: elf Integrationstests einschließlich
-Gerber-Plot, Speichern/Neuladen, Layout-Erhaltung und Dialoganbindung bestanden.
-KiCad 9 ist vorgesehen, aber noch nicht zur Laufzeit geprüft; Windows/Linux
-und die manuelle GUI-Abnahme sind noch ausstehend. KiCad 11+ wird nicht unterstützt.
-
-Export ohne zusätzliche Spiegelung und ohne Edge.Cuts-Überlagerung.
-Die DNP-Basisattribute werden ausgewertet, keine KiCad-10-Bestückungsvarianten.
-Sehr kleine Texte benötigen Zoom oder vergrößerte Ausdrucke. Eingepasst wird
-in das orientierte Umrissrechteck; Aussparungen komplexer Konturen werden nicht
-berücksichtigt. Nach dem Update vorhandene Pläne erneut erzeugen.
-
-MIT-Lizenz. Installations- und Bedienungsanleitung im README.
+Tested with KiCad 10.0.3 on macOS. KiCad 9 and Windows/Linux remain unverified;
+KiCad 11+ is not supported. See the README for usage and limitations.
