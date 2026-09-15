@@ -1,0 +1,12 @@
+{
+  "$schema": "https://go.kicad.org/pcm/schemas/v1",
+  "name": "PopulateView",
+  "description": "Automatic top and bottom PCB assembly drawings on dedicated documentation layers.",
+  "description_full": "Generate separate assembly drawings with readable references and optional DNP labels. Bottom drawings use component-side orientation. Updates replace only owned graphics. German user interface. Requires KiCad 9 or 10 with the legacy SWIG runtime; tested on KiCad 10.0.3.",
+  "identifier": "com.github.RealHaltewunsch.PopulateView",
+  "type": "plugin",
+  "author": {"name": "RealHaltewunsch", "contact": {"web": "https://github.com/RealHaltewunsch"}},
+  "license": "MIT",
+  "resources": {"homepage": "https://github.com/RealHaltewunsch/PopulateView"},
+  "versions": [{"version": "0.1.0", "status": "testing", "kicad_version": "9.0", "kicad_version_max": "10.99", "runtime": "swig"}]
+}

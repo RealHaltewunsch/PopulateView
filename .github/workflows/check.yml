@@ -1,0 +1,19 @@
+name: Source and package checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - run: python -m compileall -q populateview tests tools
+      - run: python tools/build_release.py
+      - run: python -m zipfile -t dist/PopulateView-0.1.0-pcm.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PopulateView-packages
+          path: dist/
