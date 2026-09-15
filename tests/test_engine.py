@@ -8,7 +8,7 @@ from pathlib import Path
 import wx
 APP = wx.App(False)
 import pcbnew as p
-from populateview.engine import Options, PlanError, generate, mm, point, NAMES, uid
+from populateview.engine import Options, PlanError, generate, mm, point, NAMES, uid, fit_label, bounds
 
 
 def fixture(path):
@@ -185,6 +185,57 @@ class EngineTest(unittest.TestCase):
         ids = {uid(i) for i in back.GetItems()}
         generate(self.board, Options(("front",), replace=True))
         self.assertEqual(ids, {uid(i) for i in back.GetItems()})
+
+    def fitted(self, value, width, height, angle=0):
+        anchor = point(mm(20), mm(20))
+        shape = p.PCB_SHAPE(self.board)
+        shape.SetShape(p.SHAPE_T_RECT)
+        shape.SetStart(point(anchor.x - mm(width / 2), anchor.y - mm(height / 2)))
+        shape.SetEnd(point(anchor.x + mm(width / 2), anchor.y + mm(height / 2)))
+        shape.SetWidth(mm(.01))
+        shape.Rotate(anchor, p.EDA_ANGLE(angle, p.DEGREES_T))
+        label = fit_label(self.board, p.User_1, value, [shape], anchor, angle)
+        # Inverse transform the real rendered text to check the physical body.
+        local = p.Cast_to_PCB_TEXT(label.Duplicate())
+        local.Rotate(anchor, p.EDA_ANGLE(-angle, p.DEGREES_T))
+        bb = bounds(local)
+        self.assertGreater(bb[0], anchor.x - mm(width / 2))
+        self.assertLess(bb[2], anchor.x + mm(width / 2))
+        self.assertGreater(bb[1], anchor.y - mm(height / 2))
+        self.assertLess(bb[3], anchor.y + mm(height / 2))
+        self.assertFalse(label.IsMirrored())
+        return label
+
+    def test_tiny_and_rotated_labels_stay_inside(self):
+        for size in ((.6, .3), (.2, .1), (20, 10)):
+            for angle in (0, 45, 90, -37, 180):
+                for value in ("R1", "R12345678", "R12345678 [DNP]"):
+                    with self.subTest(size=size, angle=angle, value=value):
+                        self.fitted(value, *size, angle)
+
+    def test_size_depends_on_body_and_text_length(self):
+        small = self.fitted("R1", .6, .3)
+        large = self.fitted("R1", 20, 10)
+        long = self.fitted("R12345678 [DNP]", .6, .3)
+        self.assertGreater(large.GetTextHeight(), small.GetTextHeight())
+        self.assertLess(long.GetTextHeight(), small.GetTextHeight())
+        self.assertLess(long.GetTextThickness(), small.GetTextThickness())
+
+    def test_adaptive_sizes_survive_save_and_gerber(self):
+        label = self.fitted("R12345678 [DNP]", .6, .3, -37)
+        self.board.Add(label)
+        p.SaveBoard(str(self.path), self.board)
+        board = p.LoadBoard(str(self.path))
+        saved = next(i for i in board.GetDrawings() if isinstance(i, p.PCB_TEXT))
+        self.assertEqual(label.GetTextSize(), saved.GetTextSize())
+        self.assertEqual(label.GetTextThickness(), saved.GetTextThickness())
+        plot = p.PLOT_CONTROLLER(board)
+        plot.GetPlotOptions().SetOutputDirectory(self.temp.name)
+        plot.SetLayer(p.User_1)
+        self.assertTrue(plot.OpenPlotfile("tiny", p.PLOT_FORMAT_GERBER, "Adaptive text"))
+        self.assertTrue(plot.PlotLayer())
+        plot.ClosePlot()
+        self.assertIn("D01*", next(Path(self.temp.name).glob("*.gbr")).read_text())
 
 
 if __name__ == "__main__":

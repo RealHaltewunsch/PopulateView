@@ -19,7 +19,10 @@ class PlanDialog(wx.Dialog):
         self.dnp.SetValue(True)
         for control in (self.replace, self.dnp):
             layout.Add(control, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 14)
-        note = wx.StaticText(self, label="Unterseite: gespiegelte Bauteilansicht mit lesbarer Schrift.\n"
+        note = wx.StaticText(self, label="Schriftgröße und Strichstärke passen sich dem Bauteil an.\n"
+                             "Lange Referenzen und DNP werden vollständig eingepasst.\n"
+                             "Sehr kleine Beschriftungen benötigen Zoom / Vergrößerung.\n"
+                             "Unterseite: gespiegelte Bauteilansicht mit lesbarer Schrift.\n"
                              "Export: nur den jeweiligen PopulateView-Layer wählen,\n"
                              "ohne zusätzliche Spiegelung und ohne Edge.Cuts-Überlagerung.\n"
                              "Geänderte Pläne nach der Erzeugung speichern.")
@@ -55,7 +58,7 @@ class PopulateViewPlugin(pcbnew.ActionPlugin):
             pcbnew.Refresh()
             summary = "\n".join(("Oberseite" if s == "front" else "Unterseite")
                                 + ": " + str(r["footprints"]) + " Bauteile, "
-                                + str(r["callouts"]) + " externe Beschriftungen" for s, r in result.items())
+                                + str(r["small_labels"]) + " Beschriftungen unter 0,5 mm" for s, r in result.items())
             wx.MessageBox(summary + "\n\nPläne erzeugt. Bitte prüfen und Platine speichern.",
                           "PopulateView", wx.OK | wx.ICON_INFORMATION, parent)
         except PlanError as exc:

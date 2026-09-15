@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0
+
+- Adaptive font size and proportional stroke width per footprint.
+- Fit actual KiCad text bounds including long references and DNP suffixes.
+- Measure in footprint coordinates; choose the larger fit along either axis.
+- Replace external callouts with labels inside the outline envelope.
+- Report text below 0.5 mm; cap large text at 5 mm.
+- Test tiny bodies, rotated labels, length sensitivity and small-text Gerber export.
+
 ## 0.1.0
 
 - Initial public testing release for KiCad 9/10 Action Plugin runtime.

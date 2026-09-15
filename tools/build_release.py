@@ -40,7 +40,7 @@ def main():
                      + version + "/" + package.name)
     (output / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     sums = "".join(hashlib.sha256(p.read_bytes()).hexdigest() + "  " + p.name + "\n"
-                   for p in sorted(output.glob("*.zip")))
+                   for p in sorted(output.glob("PopulateView-" + version + "-*.zip")))
     (output / "SHA256SUMS").write_text(sums)
     print(sums, end="")
 

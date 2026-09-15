@@ -140,6 +140,61 @@ def text(board, layer, value, position, height=1.0):
     return item
 
 
+def fit_label(board, layer, value, shapes, anchor, angle):
+    """Fit measured stroke text in the footprint-oriented outline envelope.
+
+    Measure in footprint coordinates, not the enlarged world-axis bounding box
+    of a rotated component. Both text length and stroke width participate.
+    """
+    local = []
+    for shape in shapes:
+        copy = pcb.Cast_to_PCB_SHAPE(shape.Duplicate())
+        copy.Rotate(anchor, pcb.EDA_ANGLE(-angle, pcb.DEGREES_T))
+        local.append(bounds(copy))
+    body = (min(b[0] for b in local), min(b[1] for b in local),
+            max(b[2] for b in local), max(b[3] for b in local))
+    margin = max(s.GetWidth() for s in shapes) + round(
+        .08 * min(body[2] - body[0], body[3] - body[1]))
+    inner = (body[0] + margin, body[1] + margin,
+             body[2] - margin, body[3] - margin)
+    if inner[2] <= inner[0] or inner[3] <= inner[1]:
+        raise PlanError("Kein beschriftbarer Innenbereich für " + value)
+    centre = point((inner[0] + inner[2]) / 2, (inner[1] + inner[3]) / 2)
+    item = text(board, layer, value, centre)
+    # Along either footprint axis, choose the largest size (up to 5 mm).
+    best = None
+    for direction in (0, 90):
+        # Normalize final orientation to upright before measuring.
+        final_angle = (angle + direction + 90) % 180 - 90
+        local_angle = final_angle - angle
+        item.SetTextAngle(pcb.EDA_ANGLE(local_angle, pcb.DEGREES_T))
+        low, high = 1, mm(5)
+        winner = 0
+        while low <= high:
+            height = (low + high) // 2
+            item.SetTextSize(point(height, height))
+            item.SetTextThickness(max(1, round(height * .12)))
+            bb = bounds(item)
+            if bb[2] - bb[0] <= inner[2] - inner[0] - 4 and bb[3] - bb[1] <= inner[3] - inner[1] - 4:
+                winner = height
+                low = height + 1
+            else:
+                high = height - 1
+        if best is None or winner > best[0]:
+            best = (winner, local_angle)
+    height, local_angle = best
+    if not height:
+        raise PlanError("Text passt selbst bei minimaler Größe nicht in " + value)
+    item.SetTextSize(point(height, height))
+    item.SetTextThickness(max(1, round(height * .12)))
+    item.SetTextAngle(pcb.EDA_ANGLE(local_angle, pcb.DEGREES_T))
+    bb = bounds(item)
+    item.SetPosition(point(centre.x + centre.x - (bb[0] + bb[2]) / 2,
+                           centre.y + centre.y - (bb[1] + bb[3]) / 2))
+    item.Rotate(anchor, pcb.EDA_ANGLE(angle, pcb.DEGREES_T))
+    return item
+
+
 def stage_side(board, side, layer, edges, mark_dnp):
     box = board.GetBoardEdgesBoundingBox()
     centre = box.GetCenter()
@@ -183,51 +238,21 @@ def stage_side(board, side, layer, edges, mark_dnp):
         label = fp.GetReference() or "?"
         if mark_dnp and fp.IsDNP():
             label += " [DNP]"
-        records.append((label, anchor, body))
+        angle = fp.GetOrientationDegrees() * (-1 if mirror else 1)
+        records.append((label, anchor, shapes, angle))
 
     occupied = []
-    bank_y = box.GetY()
-    callouts = 0
-    for index, (label, anchor, body) in enumerate(records):
-        item = text(board, layer, label, anchor)
-        # Try body centre, then nearby positions. Test actual KiCad text bounds.
-        cx, cy = (body[0] + body[2]) / 2, (body[1] + body[3]) / 2
-        positions = [point(cx, cy), point(cx, body[1] - mm(1)),
-                     point(cx, body[3] + mm(1))]
-        placed = False
-        for candidate_index, candidate in enumerate(positions):
-            item.SetPosition(candidate)
-            bb = bounds(item)
-            if candidate_index == 0 and not (bb[0] > body[0] + mm(.2)
-                    and bb[2] < body[2] - mm(.2)
-                    and bb[1] > body[1] + mm(.2) and bb[3] < body[3] - mm(.2)):
-                continue
-            obstacles = [b for j, b in enumerate(bodies) if j != index]
-            if candidate_index:
-                obstacles.append(body)
-            if not any(overlap(bb, b, mm(.35)) for b in occupied + obstacles):
-                placed = True
-                break
-        if not placed:
-            # Dense layouts get a readable callout column, without shrinking text.
-            width = bounds(item)[2] - bounds(item)[0]
-            bank_x = max([box.GetRight()] + [b[2] for b in bodies]) + mm(5) + width / 2
-            while True:
-                item.SetPosition(point(bank_x, bank_y))
-                bb = bounds(item)
-                if not any(overlap(bb, b, mm(.4)) for b in occupied + bodies):
-                    break
-                bank_y += mm(2)
-            bank_y = bb[3] + mm(2)
-            items.append(line(board, layer, anchor, point(bb[0] - mm(.4), item.GetPosition().y)))
-            callouts += 1
+    small_labels = 0
+    for label, anchor, shapes, angle in records:
+        item = fit_label(board, layer, label, shapes, anchor, angle)
+        small_labels += item.GetTextHeight() < mm(.5)
         occupied.append(bounds(item))
         items.append(item)
     title_y = min([box.GetY()] + [b[1] for b in occupied + bodies]) - mm(3)
     items.append(text(board, layer,
                       "PopulateView - " + ("BOTTOM (component view)" if mirror else "TOP"),
                       point(centre.x, title_y), 1.2))
-    return items, len(footprints), callouts
+    return items, len(footprints), small_labels
 
 
 def generate(board, options):
@@ -295,4 +320,4 @@ def generate(board, options):
         board.SetVisibleLayers(visible)
         raise
     return {s: {"layer": plans[s][0], "footprints": staged[s][1],
-                "callouts": staged[s][2]} for s in options.sides}
+                "small_labels": staged[s][2]} for s in options.sides}

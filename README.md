@@ -5,12 +5,12 @@ mit Bauteilumrissen, lesbaren Referenzen und optionaler DNP-Kennzeichnung.
 Die Pläne liegen direkt in der Platine und lassen sich als Gerber exportieren.
 
 Open-source KiCad Action Plugin for top/bottom assembly drawings. German UI;
-English developer notes below. MIT licensed. Initial testing release **0.1.0**.
+English developer notes below. MIT licensed. Testing release **0.2.0**.
 
 ## Installation
 
 1. Unter [Releases](https://github.com/RealHaltewunsch/PopulateView/releases)
-   `PopulateView-0.1.0-pcm.zip` herunterladen.
+   `PopulateView-0.2.0-pcm.zip` herunterladen.
 2. Im KiCad-Projektmanager den **Plugin and Content Manager** öffnen und
    **Install from File / Aus Datei installieren** wählen. ZIP auswählen.
 3. PCB-Editor neu starten. Unter **Werkzeuge → Externe Plugins**
@@ -66,11 +66,21 @@ deckungsgleiches Overlay zum ursprünglichen Top-Koordinatensystem.
   Footprint-Eigenschaft gelesen; Textfelder namens „DNP“ werden nicht interpretiert.
 - KiCad-10-Bestückungsvarianten werden nicht ausgewählt: Es gilt die Basis-DNP-
   Eigenschaft der Platine. Kein BOM-/Variantensystem ist angebunden.
-- Schrift ist horizontal, 1 mm hoch. Die Platzierung prüft Textrechtecke gegen
-  andere Beschriftungen und Bauteilrechtecke. Sehr dichte Stellen erhalten eine
-  externe Spalte mit Zuordnungslinien. Linienkreuzungen sowie Kollisionen mit
-  Details innerhalb eines Bauteils oder komplexen Konturen sind möglich;
-  die Zeichnungen vor Verwendung visuell prüfen.
+- Schriftgröße und Strichstärke werden für jeden Footprint angepasst. Die
+  tatsächlichen KiCad-Textgrenzen einschließlich `[DNP]` bestimmen die Größe:
+  lange Designatoren werden kleiner, große Bauteile erhalten größere Schrift
+  (bis 5 mm). Ein proportionaler Innenabstand berücksichtigt die Umrisslinien.
+- Die Einpassung erfolgt im an den Footprint-Achsen ausgerichteten Rechteck
+  der Umrisse. Auch gedrehte Bauteile werden in diesen lokalen Achsen gemessen;
+  die günstigere der beiden Schreibrichtungen wird verwendet. Externe
+  Beschriftungen entfallen. Das Rechteck ist keine exakte Innenfläche beliebiger
+  konkaver oder runder Konturen: Aussparungen, innere Grafiken und überlappende
+  Footprints werden nicht als Hindernisse behandelt.
+- Bei winzigen Bauteilen (z. B. 0201) und langen Referenzen können Schrift und
+  Linien sehr klein werden. Es gibt keine feste Mindestschriftgröße, die ein
+  Überragen erzwingen würde. Unter 0,5 mm zählt der Ergebnisdialog die kleinen
+  Texte; zum Lesen ist gegebenenfalls Zoom oder ein vergrößerter Ausdruck nötig.
+  Ohne beschriftbaren Innenbereich bricht die Erzeugung vor Änderungen ab.
 - Leiterbahnen, Zonen, Pads und ursprüngliche Footprint-/Siebdruckdaten werden
   nicht verändert. Das Plugin speichert nicht automatisch und bearbeitet keine
   anderen Dateien. Geometrie wird vorab vorbereitet; Fehler während der Übernahme
