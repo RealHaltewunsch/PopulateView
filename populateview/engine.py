@@ -140,6 +140,68 @@ def text(board, layer, value, position, height=1.0):
     return item
 
 
+def simplify_conflicting_details(shapes, label, anchor, angle):
+    """Remove interior decoration only inside a verified rectangular outline.
+
+    Work on detached documentation copies in footprint coordinates. Recognize
+    native rectangles and complete rectangles assembled from line segments.
+    On conflict remove the whole interior decoration, avoiding partial symbols.
+    Unknown/open contours are kept intact rather than guessed from their bbox.
+    """
+    local = []
+    for source in shapes:
+        shape = pcb.Cast_to_PCB_SHAPE(source.Duplicate())
+        shape.Rotate(anchor, pcb.EDA_ANGLE(-angle, pcb.DEGREES_T))
+        local.append(shape)
+    text_copy = pcb.Cast_to_PCB_TEXT(label.Duplicate())
+    text_copy.Rotate(anchor, pcb.EDA_ANGLE(-angle, pcb.DEGREES_T))
+    label_box = bounds(text_copy)
+    rectangles = []
+    segments = []
+    tolerance = 10  # 10 nm: only compensate for integer rotation rounding.
+    for shape in local:
+        if shape.GetShape() == pcb.SHAPE_T_RECT:
+            a, b = shape.GetStart(), shape.GetEnd()
+            rectangles.append((min(a.x, b.x), min(a.y, b.y), max(a.x, b.x), max(a.y, b.y)))
+        elif shape.GetShape() == pcb.SHAPE_T_SEGMENT:
+            segments.append((shape.GetStart(), shape.GetEnd()))
+    if segments:
+        left = min(min(a.x, b.x) for a, b in segments)
+        right = max(max(a.x, b.x) for a, b in segments)
+        top = min(min(a.y, b.y) for a, b in segments)
+        bottom = max(max(a.y, b.y) for a, b in segments)
+
+        def covered(axis, fixed, start, end):
+            intervals = []
+            for a, b in segments:
+                av, bv = (a.x, b.x) if axis == "x" else (a.y, b.y)
+                if abs(av - fixed) <= tolerance and abs(bv - fixed) <= tolerance:
+                    u, v = (a.y, b.y) if axis == "x" else (a.x, b.x)
+                    intervals.append((min(u, v), max(u, v)))
+            cursor = start
+            for u, v in sorted(intervals):
+                if u > cursor + tolerance:
+                    return False
+                cursor = max(cursor, v)
+            return cursor >= end - tolerance
+
+        if (right > left and bottom > top
+                and covered("x", left, top, bottom) and covered("x", right, top, bottom)
+                and covered("y", top, left, right) and covered("y", bottom, left, right)):
+            rectangles.append((left, top, right, bottom))
+    removable = set()
+    for rect in rectangles:
+        interior = []
+        for index, shape in enumerate(local):
+            bb = bounds(shape)
+            if (bb[0] > rect[0] + tolerance and bb[1] > rect[1] + tolerance
+                    and bb[2] < rect[2] - tolerance and bb[3] < rect[3] - tolerance):
+                interior.append(index)
+        if any(overlap(bounds(local[index]), label_box) for index in interior):
+            removable.update(interior)
+    return [shape for index, shape in enumerate(shapes) if index not in removable]
+
+
 def fit_label(board, layer, value, shapes, anchor, angle):
     """Fit measured stroke text in the footprint-oriented outline envelope.
 
@@ -228,7 +290,6 @@ def stage_side(board, side, layer, edges, mark_dnp):
             if mirror:
                 shape.Mirror(centre, pcb.FLIP_DIRECTION_LEFT_RIGHT)
             shapes = [shape]
-        items.extend(shapes)
         boxes = [bounds(s) for s in shapes]
         body = (min(b[0] for b in boxes), min(b[1] for b in boxes),
                 max(b[2] for b in boxes), max(b[3] for b in boxes))
@@ -245,6 +306,10 @@ def stage_side(board, side, layer, edges, mark_dnp):
     small_labels = 0
     for label, anchor, shapes, angle in records:
         item = fit_label(board, layer, label, shapes, anchor, angle)
+        simplified = simplify_conflicting_details(shapes, item, anchor, angle)
+        if len(simplified) != len(shapes):
+            item = fit_label(board, layer, label, simplified, anchor, angle)
+        items.extend(simplified)
         small_labels += item.GetTextHeight() < mm(.5)
         occupied.append(bounds(item))
         items.append(item)

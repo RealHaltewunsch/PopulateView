@@ -8,5 +8,5 @@
   "author": {"name": "RealHaltewunsch", "contact": {"web": "https://github.com/RealHaltewunsch"}},
   "license": "MIT",
   "resources": {"homepage": "https://github.com/RealHaltewunsch/PopulateView"},
-  "versions": [{"version": "0.2.1", "status": "testing", "kicad_version": "9.0", "kicad_version_max": "10.99", "runtime": "swig"}]
+  "versions": [{"version": "0.2.2", "status": "testing", "kicad_version": "9.0", "kicad_version_max": "10.99", "runtime": "swig"}]
 }

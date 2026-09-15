@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2
+
+- Resolve label conflicts with interior decoration inside verified rectangular outlines.
+- Omit interior decoration only from generated drawings and refit the reference.
+- Preserve original footprint graphics and silkscreen, including polarity marks.
+- Recognize native and segmented rectangles with rotation and bottom mirroring.
+- Keep unknown/open outlines intact; add diode-symbol regression coverage.
+
 ## 0.2.1
 
 - Translate the complete plugin interface, messages and menu entry into English.

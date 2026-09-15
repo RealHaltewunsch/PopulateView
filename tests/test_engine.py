@@ -8,7 +8,8 @@ from pathlib import Path
 import wx
 APP = wx.App(False)
 import pcbnew as p
-from populateview.engine import Options, PlanError, generate, mm, point, NAMES, uid, fit_label, bounds
+from populateview.engine import (Options, PlanError, generate, mm, point, NAMES,
+                                uid, fit_label, bounds, simplify_conflicting_details)
 
 
 def fixture(path):
@@ -44,6 +45,18 @@ def fixture(path):
             shape.SetLayer(p.F_Fab)
             shape.SetWidth(mm(.1))
             fp.Add(shape)
+            if ref == "R1":
+                # Internal diode-like symbol on Fab and real silkscreen.
+                for source_layer in (p.F_Fab, p.F_SilkS):
+                    for start, end in [((-1, -.7), (1, 0)), ((1, 0), (-1, .7)),
+                                       ((-1, .7), (-1, -.7)), ((1, -.7), (1, .7))]:
+                        detail = p.PCB_SHAPE(fp)
+                        detail.SetShape(p.SHAPE_T_SEGMENT)
+                        detail.SetStart(point(mm(x + start[0]), mm(y + start[1])))
+                        detail.SetEnd(point(mm(x + end[0]), mm(y + end[1])))
+                        detail.SetLayer(source_layer)
+                        detail.SetWidth(mm(.1))
+                        fp.Add(detail)
         silk = p.PCB_SHAPE(fp)
         silk.SetShape(p.SHAPE_T_CIRCLE)
         silk.SetCenter(fp.GetPosition())
@@ -236,6 +249,46 @@ class EngineTest(unittest.TestCase):
         self.assertTrue(plot.PlotLayer())
         plot.ClosePlot()
         self.assertIn("D01*", next(Path(self.temp.name).glob("*.gbr")).read_text())
+
+    def test_internal_symbol_removed_from_generated_plan_only(self):
+        fp = next(f for f in self.board.GetFootprints() if f.GetReference() == "R1")
+        source_ids = {uid(s) for s in fp.GraphicalItems()}
+        result = generate(self.board, Options())
+        generated = [s for s in self.board.GetDrawings() if isinstance(s, p.PCB_SHAPE)
+                     and s.GetLayer() == result["front"]["layer"]
+                     and bounds(s)[0] > mm(17) and bounds(s)[2] < mm(23)
+                     and bounds(s)[1] > mm(18) and bounds(s)[3] < mm(22)]
+        self.assertEqual(len(generated), 1)
+        self.assertEqual(generated[0].GetShape(), p.SHAPE_T_RECT)
+        self.assertEqual(source_ids, {uid(s) for s in fp.GraphicalItems()})
+
+    def test_segment_outline_rotation_and_mirroring(self):
+        anchor = point(mm(20), mm(20))
+        for angle in (0, 37, 90, 180):
+            for mirror in (False, True):
+                with self.subTest(angle=angle, mirror=mirror):
+                    shapes = []
+                    for start, end in [((-2, -1), (2, -1)), ((2, -1), (2, 1)),
+                                       ((2, 1), (-2, 1)), ((-2, 1), (-2, -1)),
+                                       ((-.6, -.5), (.6, 0)), ((.6, 0), (-.6, .5)),
+                                       ((-.6, .5), (-.6, -.5)), ((.6, -.5), (.6, .5))]:
+                        shape = p.PCB_SHAPE(self.board)
+                        shape.SetShape(p.SHAPE_T_SEGMENT)
+                        shape.SetStart(point(anchor.x + mm(start[0]), anchor.y + mm(start[1])))
+                        shape.SetEnd(point(anchor.x + mm(end[0]), anchor.y + mm(end[1])))
+                        shape.SetWidth(mm(.05))
+                        shape.Rotate(anchor, p.EDA_ANGLE(angle, p.DEGREES_T))
+                        if mirror:
+                            shape.Mirror(anchor, p.FLIP_DIRECTION_LEFT_RIGHT)
+                        shapes.append(shape)
+                    orientation = -angle if mirror else angle
+                    label = fit_label(self.board, p.User_1, "D3", shapes, anchor, orientation)
+                    kept = simplify_conflicting_details(shapes, label, anchor, orientation)
+                    self.assertEqual([uid(s) for s in kept], [uid(s) for s in shapes[:4]])
+                    # An open outline is not sufficient evidence to delete details.
+                    open_shapes = shapes[1:]
+                    self.assertEqual(len(simplify_conflicting_details(
+                        open_shapes, label, anchor, orientation)), len(open_shapes))
 
 
 if __name__ == "__main__":

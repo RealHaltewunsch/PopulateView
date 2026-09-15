@@ -5,11 +5,11 @@ outlines, readable reference designators and optional DNP markings. Drawings are
 stored directly in the board and can be exported as Gerber files.
 
 Open-source KiCad Action Plugin using the SWIG runtime, with an English interface.
-MIT licensed. Testing release **0.2.1**.
+MIT licensed. Testing release **0.2.2**.
 
 ## Installation
 
-1. Download `PopulateView-0.2.1-pcm.zip` from
+1. Download `PopulateView-0.2.2-pcm.zip` from
    [Releases](https://github.com/RealHaltewunsch/PopulateView/releases).
 2. Open the **Plugin and Content Manager** in the KiCad project manager,
    choose **Install from File** and select the ZIP archive.
@@ -76,6 +76,13 @@ an overlay with the original top-view coordinate system.
   the two text orientations is used. There are no external labels. This rectangle
   is not the exact interior of arbitrary concave or circular outlines: cutouts,
   internal graphics and overlapping footprints are not treated as obstacles.
+- If a label overlaps internal graphics inside a verified rectangular outline,
+  the interior graphics are omitted from the generated drawing and the label is
+  fitted again. The rectangle is preserved. Both native rectangles and complete
+  rectangles made of line segments are recognized, including rotated and mirrored
+  footprints. Internal polarity marks may be omitted too. Original fabrication
+  and silkscreen graphics are untouched. Open or unrecognized outlines are kept;
+  this rule does not resolve every conflict in arbitrary footprint geometry.
 - Tiny components (such as 0201) and long references can produce very small text
   and strokes. There is no fixed minimum font size that would force text outside
   the bounds. The results dialog counts labels below 0.5 mm; reading them may

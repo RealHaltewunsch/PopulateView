@@ -34,6 +34,7 @@ class PlanDialog(wx.Dialog):
             layout.Add(control, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 14)
         note = wx.StaticText(self, label="Font size and stroke width adapt to each component.\n"
                              "Long references and DNP labels are fitted in full.\n"
+                             "Conflicting internal graphics may be omitted in drawings.\n"
                              "Very small labels may require zoom or an enlarged printout.\n"
                              "Bottom: mirrored component view with readable text.\n"
                              "Export only the relevant PopulateView layer,\n"
