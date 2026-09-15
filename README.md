@@ -1,110 +1,110 @@
 # PopulateView
 
-Automatische Bestückungspläne für KiCad: Oberseite, Unterseite oder beide –
-mit Bauteilumrissen, lesbaren Referenzen und optionaler DNP-Kennzeichnung.
-Die Pläne liegen direkt in der Platine und lassen sich als Gerber exportieren.
+Automatic assembly drawings for KiCad: top, bottom or both sides, with component
+outlines, readable reference designators and optional DNP markings. Drawings are
+stored directly in the board and can be exported as Gerber files.
 
-Open-source KiCad Action Plugin for top/bottom assembly drawings. German UI;
-English developer notes below. MIT licensed. Testing release **0.2.0**.
+Open-source KiCad Action Plugin using the SWIG runtime. The plugin interface is
+currently in German; this guide describes its controls in English.
+MIT licensed. Testing release **0.2.0**.
 
 ## Installation
 
-1. Unter [Releases](https://github.com/RealHaltewunsch/PopulateView/releases)
-   `PopulateView-0.2.0-pcm.zip` herunterladen.
-2. Im KiCad-Projektmanager den **Plugin and Content Manager** öffnen und
-   **Install from File / Aus Datei installieren** wählen. ZIP auswählen.
-3. PCB-Editor neu starten. Unter **Werkzeuge → Externe Plugins**
-   (englisch: **Tools → External Plugins**) **PopulateView** starten.
+1. Download `PopulateView-0.2.0-pcm.zip` from
+   [Releases](https://github.com/RealHaltewunsch/PopulateView/releases).
+2. Open the **Plugin and Content Manager** in the KiCad project manager,
+   choose **Install from File** and select the ZIP archive.
+3. Restart the PCB editor. Launch **PopulateView** from
+   **Tools → External Plugins**.
 
-Alternativ das `manual.zip` entpacken und den enthaltenen Ordner `populateview`
-in einen KiCad-Scripting-Pluginpfad kopieren. Die tatsächlich verwendeten Pfade
-zeigt die PCB-Python-Konsole mit `pcbnew.PLUGIN_DIRECTORIES_SEARCH`.
-Nur eine Installationsmethode verwenden, damit kein doppelter Menüeintrag entsteht.
-Das GitHub-Quellcode-ZIP ist kein PCM-Installationspaket.
+Alternatively, extract the `manual.zip` archive and copy its `populateview`
+folder into a KiCad scripting plugin directory. To see the search paths used
+by your installation, enter `pcbnew.PLUGIN_DIRECTORIES_SEARCH` in the PCB
+Python console. Use only one installation method to avoid duplicate menu entries.
+GitHub's source code ZIP is not a PCM installation package.
 
-## Bedienung
+## Usage
 
-1. Platine speichern; eine Kontur auf `Edge.Cuts` muss vorhanden sein.
-2. PopulateView öffnen und Oberseite, Unterseite oder beide wählen.
-3. Bei Bedarf **DNP-Bauteile mit [DNP] kennzeichnen** aktivieren (Standard).
-4. **Bestückungsplan erzeugen** drücken. Danach die Dokumentationslayer
-   `PopulateView.Front` und/oder `PopulateView.Back` ansehen und speichern.
-5. Nach Layoutänderungen erneut ausführen und **aktualisieren / ersetzen** wählen.
-   Eine Bestätigung erklärt, dass manuelle Änderungen an Plugin-Objekten entfallen.
+1. Save the board. It must have an outline on `Edge.Cuts`.
+2. Open PopulateView and select top, bottom or both sides.
+3. Enable the option to mark DNP components with `[DNP]` if needed (on by default).
+4. Click the button to generate the assembly drawing. Inspect the
+   `PopulateView.Front` and/or `PopulateView.Back` documentation layers and save.
+5. After layout changes, run the plugin again and select the update/replace option.
+   A confirmation explains that manual edits to plugin-owned objects will be lost.
 
-Freie `User.N`-Layer werden automatisch aktiviert und benannt. Benutzerdefiniert
-benannte oder belegte Layer werden nicht verwendet. Nur die ausgewählten Seiten
-werden aktualisiert. Jede Seite besitzt eine eigene persistente KiCad-Gruppe.
-Fremde Objekte auf einem Ziellayer führen zu einer erklärenden Fehlermeldung.
-Gruppen und Layernamen nicht umbenennen oder auflösen: Sie dienen der Erkennung.
+Available `User.N` layers are automatically enabled and named. Layers with
+custom names or existing content are not allocated. Only the selected sides
+are updated. Each side has its own persistent KiCad group. Unrelated objects
+on a target layer cause an explanatory error. Do not rename the layers or
+rename or dissolve the groups: they identify the generated drawings.
 
-## Gerber-Export
+## Gerber export
 
-Im PCB-Editor **Datei → Plotten**, Format **Gerber** wählen.
-Nur `PopulateView.Front` und/oder `PopulateView.Back` markieren. KiCad zeigt
-je nach Version zusätzlich den ursprünglichen technischen Namen `User.N` an.
-Jeder Layer wird eine separate Datei.
+In the PCB editor, choose **File → Plot** and select **Gerber** as the format.
+Select only `PopulateView.Front` and/or `PopulateView.Back`. Depending on the
+KiCad version, the original technical name `User.N` may also be displayed.
+Each layer produces a separate file.
 
-- **Spiegeln deaktivieren**: Die Unterseite ist bereits geometrisch gespiegelt.
-- Keine zusätzlichen Layer als gemeinsame Layer überlagern, insbesondere
-  kein zusätzliches `Edge.Cuts`: Die passende Kontur ist bereits enthalten.
-- Referenzen/Text nicht in den Plotoptionen deaktivieren; normal gefüllt plotten.
-- Die erzeugten Gerber-Dateien in GerbView prüfen. Als Bestückungsdokumente
-  eindeutig benennen und getrennt von den Fertigungs-Kupferdaten weitergeben.
+- **Disable mirroring**: the bottom view is already geometrically mirrored.
+- Do not overlay additional common layers, especially `Edge.Cuts`: the correctly
+  oriented board outline is already included.
+- Keep references/text enabled in the plot options and use normal filled plotting.
+- Inspect the generated files in GerbView. Name them clearly as assembly drawings
+  and distribute them separately from manufacturing copper data.
 
-Die Unterseite entspricht dem Blick direkt auf ihre Bauteile, nach Umklappen
-der Platine um die vertikale Mittellinie ihrer Kontur. Umrisse und Kontur sind
-gespiegelt, Texte bleiben normal lesbar. Der Back-Plan ist deshalb kein
-deckungsgleiches Overlay zum ursprünglichen Top-Koordinatensystem.
+The bottom view looks directly at the bottom components after flipping the board
+about the vertical centre line of its outline. Component and board outlines are
+mirrored; text remains readable. The bottom drawing therefore does not align as
+an overlay with the original top-view coordinate system.
 
-## Verhalten und Grenzen
+## Behavior and limitations
 
-- Umrisse: `F.Fab`/`B.Fab`, ersatzweise Courtyard, dann Siebdruck; ohne grafische
-  Umrisse ein Begrenzungsrechteck ohne Referenz-/Wertfelder. Nur Kopien entstehen.
-- Alle Footprints der jeweiligen Seite werden dokumentiert, auch mechanische
-  oder aus Positionsdateien ausgeschlossene Footprints. DNP wird aus der
-  Footprint-Eigenschaft gelesen; Textfelder namens „DNP“ werden nicht interpretiert.
-- KiCad-10-Bestückungsvarianten werden nicht ausgewählt: Es gilt die Basis-DNP-
-  Eigenschaft der Platine. Kein BOM-/Variantensystem ist angebunden.
-- Schriftgröße und Strichstärke werden für jeden Footprint angepasst. Die
-  tatsächlichen KiCad-Textgrenzen einschließlich `[DNP]` bestimmen die Größe:
-  lange Designatoren werden kleiner, große Bauteile erhalten größere Schrift
-  (bis 5 mm). Ein proportionaler Innenabstand berücksichtigt die Umrisslinien.
-- Die Einpassung erfolgt im an den Footprint-Achsen ausgerichteten Rechteck
-  der Umrisse. Auch gedrehte Bauteile werden in diesen lokalen Achsen gemessen;
-  die günstigere der beiden Schreibrichtungen wird verwendet. Externe
-  Beschriftungen entfallen. Das Rechteck ist keine exakte Innenfläche beliebiger
-  konkaver oder runder Konturen: Aussparungen, innere Grafiken und überlappende
-  Footprints werden nicht als Hindernisse behandelt.
-- Bei winzigen Bauteilen (z. B. 0201) und langen Referenzen können Schrift und
-  Linien sehr klein werden. Es gibt keine feste Mindestschriftgröße, die ein
-  Überragen erzwingen würde. Unter 0,5 mm zählt der Ergebnisdialog die kleinen
-  Texte; zum Lesen ist gegebenenfalls Zoom oder ein vergrößerter Ausdruck nötig.
-  Ohne beschriftbaren Innenbereich bricht die Erzeugung vor Änderungen ab.
-- Leiterbahnen, Zonen, Pads und ursprüngliche Footprint-/Siebdruckdaten werden
-  nicht verändert. Das Plugin speichert nicht automatisch und bearbeitet keine
-  anderen Dateien. Geometrie wird vorab vorbereitet; Fehler während der Übernahme
-  lösen einen Rollback der Plugin-Änderungen aus.
-- Der Menüaufruf verwendet KiCads Action-Plugin-Undo-Verwaltung. Direkte Aufrufe
-  von `engine.generate()` besitzen keinen eigenen Undo-Stack.
-- Kein freier User-Layer, fehlende Kontur, ungespeicherte Platine oder veränderte
-  Besitzgruppen: Abbruch mit Hinweis, ohne fremde Objekte zu löschen.
+- Outlines come from `F.Fab`/`B.Fab`, with courtyard and then silkscreen as
+  fallbacks. If no graphical outline exists, a bounding rectangle excluding
+  reference/value fields is used. Only copies are created.
+- All footprints on the selected side are documented, including mechanical
+  footprints and those excluded from position files. DNP comes from the footprint
+  property; text fields named "DNP" are not interpreted.
+- KiCad 10 assembly variants are not selected: the board's base DNP property
+  is used. No BOM or variant system is integrated.
+- Font size and stroke thickness adapt to each footprint. Actual KiCad text
+  bounds, including `[DNP]`, determine the size: long designators become smaller,
+  while large components receive larger text (up to 5 mm). A proportional inner
+  margin accounts for outline strokes.
+- Text is fitted into the outline's bounding rectangle aligned with the footprint
+  axes. Rotated components are also measured in these local axes; the better of
+  the two text orientations is used. There are no external labels. This rectangle
+  is not the exact interior of arbitrary concave or circular outlines: cutouts,
+  internal graphics and overlapping footprints are not treated as obstacles.
+- Tiny components (such as 0201) and long references can produce very small text
+  and strokes. There is no fixed minimum font size that would force text outside
+  the bounds. The results dialog counts labels below 0.5 mm; reading them may
+  require zooming or an enlarged printout. If there is no usable interior area,
+  generation stops before making changes.
+- Tracks, zones, pads and original footprint/silkscreen data are not modified.
+  The plugin does not save automatically or edit other files. Geometry is prepared
+  before changes are applied; an error during application rolls back plugin changes.
+- Launching from the menu uses KiCad's Action Plugin undo handling. Direct calls
+  to `engine.generate()` do not have their own undo stack.
+- No available user layer, missing outline, unsaved board or modified ownership
+  groups: generation stops with an explanation without deleting unrelated objects.
 
-## Kompatibilität
+## Compatibility
 
 | Version | Status |
 | --- | --- |
-| KiCad 10.0.3, macOS | Integrationstests mit echter KiCad-Python-Laufzeit und Gerber-Plot bestanden |
-| KiCad 9.x | API-kompatibel vorgesehen; noch kein Laufzeittest auf Version 9 |
-| Windows / Linux | Plattformunabhängiger Python-/wx-Code; lokale GUI-Prüfung noch ausstehend |
-| KiCad 11+ | Nicht unterstützt; Portierung auf IPC erforderlich |
+| KiCad 10.0.3, macOS | Integration tests using the actual KiCad Python runtime and Gerber plotting passed |
+| KiCad 9.x | Intended to be API-compatible; not yet runtime-tested on version 9 |
+| Windows / Linux | Platform-independent Python/wx code; local GUI verification pending |
+| KiCad 11+ | Not supported; requires an IPC port |
 
-Das Plugin benötigt KiCads `pcbnew`-SWIG-Bindings und wxPython aus der
-KiCad-Installation, keine zusätzlichen pip-Pakete. Die Legacy-Schnittstelle
-ist [seit KiCad 9 abgekündigt](https://dev-docs.kicad.org/en/apis-and-binding/pcbnew/).
-Die Versionsprüfung verhindert den Betrieb außerhalb von 9/10.
-Es ist öffentlich auf GitHub verfügbar; eine Aufnahme in das offizielle
-KiCad-Pluginverzeichnis ist damit nicht verbunden.
+The plugin requires KiCad's `pcbnew` SWIG bindings and wxPython from the KiCad
+installation, with no additional pip packages. The legacy interface has been
+[deprecated since KiCad 9](https://dev-docs.kicad.org/en/apis-and-binding/pcbnew/).
+A version check prevents operation outside KiCad 9/10. PopulateView continues
+to use SWIG for now. It is publicly available on GitHub; this does not imply
+inclusion in the official KiCad plugin directory.
 
 ## Development
 
