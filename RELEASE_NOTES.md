@@ -1,21 +1,21 @@
-## PopulateView 0.2.2 – Resolve internal symbol conflicts
+## PopulateView 0.2.3 – Fix pin-1 marker outline selection
 
-When reference text overlaps internal graphics inside a verified rectangular
-outline, the generated drawing omits the interior graphics and refits the label.
-This resolves cases such as a diode symbol crossing its reference designator.
+Fixes "No usable interior area for label: Q1" on footprints whose fabrication
+layer contains only a tiny pin-1 marker. The plugin now rejects undersized or
+unusable outline candidates and tries courtyard or silkscreen instead.
 
-The outer rectangle and all original footprint/silkscreen data are preserved.
-Internal polarity information may be omitted from the assembly drawing.
-Native rectangles and complete rectangles made of segments are supported,
-including rotated and mirrored footprints. Unknown or open outlines remain intact.
+When no usable outline exists, actual pad bounds provide a fallback rectangle
+with an adaptive stroke width. Original footprints, pads, tracks and silkscreen
+are preserved. The interface remains English and the runtime remains SWIG.
 
-Install `PopulateView-0.2.2-pcm.zip` through **Install from File** in KiCad's
+Install `PopulateView-0.2.3-pcm.zip` through **Install from File** in KiCad's
 Plugin and Content Manager, then restart the PCB editor. Enable **Update / replace
 existing PopulateView drawings** and regenerate the affected sides.
 A manual installation ZIP is also available.
 
-All 13 integration tests passed with KiCad 10.0.3 on macOS, including symbol
-removal, rotation, mirroring, original layout preservation and Gerber export.
-The reported issue was reproduced on a synthetic board; no user PCB was available.
+All 16 integration tests passed with KiCad 10.0.3 on macOS. The reported error
+was reproduced on a copy of the affected 195-footprint board. Both assembly
+drawings (170 top / 25 bottom) and Gerber exports succeeded after the fix.
+Board data used for local testing is not included in the repository or packages.
 KiCad 9 and Windows/Linux remain unverified;
 KiCad 11+ is not supported. See the README for usage and limitations.

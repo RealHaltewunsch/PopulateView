@@ -5,11 +5,11 @@ outlines, readable reference designators and optional DNP markings. Drawings are
 stored directly in the board and can be exported as Gerber files.
 
 Open-source KiCad Action Plugin using the SWIG runtime, with an English interface.
-MIT licensed. Testing release **0.2.2**.
+MIT licensed. Testing release **0.2.3**.
 
 ## Installation
 
-1. Download `PopulateView-0.2.2-pcm.zip` from
+1. Download `PopulateView-0.2.3-pcm.zip` from
    [Releases](https://github.com/RealHaltewunsch/PopulateView/releases).
 2. Open the **Plugin and Content Manager** in the KiCad project manager,
    choose **Install from File** and select the ZIP archive.
@@ -60,8 +60,12 @@ an overlay with the original top-view coordinate system.
 ## Behavior and limitations
 
 - Outlines come from `F.Fab`/`B.Fab`, with courtyard and then silkscreen as
-  fallbacks. If no graphical outline exists, a bounding rectangle excluding
-  reference/value fields is used. Only copies are created.
+  fallbacks. A candidate must support text fitting and span at least 20% of the
+  pad envelope along each footprint axis when pads exist. This avoids mistaking
+  a tiny pin-1 dot for the component body. If no usable graphical outline exists,
+  a rectangle of the pad envelope is used; footprints without pads use their
+  bounding rectangle excluding reference/value fields. Its stroke adapts to
+  very small geometry. Only copies are created.
 - All footprints on the selected side are documented, including mechanical
   footprints and those excluded from position files. DNP comes from the footprint
   property; text fields named "DNP" are not interpreted.

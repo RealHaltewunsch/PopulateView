@@ -262,6 +262,57 @@ class EngineTest(unittest.TestCase):
         self.assertEqual(generated[0].GetShape(), p.SHAPE_T_RECT)
         self.assertEqual(source_ids, {uid(s) for s in fp.GraphicalItems()})
 
+    def test_tiny_fab_marker_uses_silkscreen_body(self):
+        fp = next(f for f in self.board.GetFootprints() if f.GetReference() == "R1")
+        fp.SetReference("Q1")
+        for shape in list(fp.GraphicalItems()):
+            if shape.GetLayer() == p.F_Fab:
+                fp.Remove(shape)
+        marker = p.PCB_SHAPE(fp)
+        marker.SetShape(p.SHAPE_T_CIRCLE)
+        marker.SetCenter(fp.GetPosition())
+        marker.SetEnd(point(fp.GetPosition().x + mm(.03), fp.GetPosition().y))
+        marker.SetWidth(mm(.06))
+        marker.SetLayer(p.F_Fab)
+        fp.Add(marker)
+        result = generate(self.board, Options(("front",)))
+        label = next(i for i in self.board.GetDrawings() if isinstance(i, p.PCB_TEXT)
+                     and i.GetText() == "Q1")
+        self.assertGreater(label.GetTextHeight(), mm(.5))
+        self.assertEqual(result["front"]["footprints"], 3)
+        self.assertEqual(marker.GetWidth(), mm(.06))
+
+    def test_fit_eligible_marker_is_not_a_body_outline(self):
+        fp = next(f for f in self.board.GetFootprints() if f.GetReference() == "R1")
+        for shape in list(fp.GraphicalItems()):
+            if shape.GetLayer() == p.F_Fab:
+                fp.Remove(shape)
+        marker = p.PCB_SHAPE(fp)
+        marker.SetShape(p.SHAPE_T_CIRCLE)
+        marker.SetCenter(fp.GetPosition())
+        marker.SetEnd(point(fp.GetPosition().x + mm(.06), fp.GetPosition().y))
+        marker.SetWidth(mm(.01))
+        marker.SetLayer(p.F_Fab)
+        fp.Add(marker)
+        generate(self.board, Options(("front",)))
+        label = next(i for i in self.board.GetDrawings() if isinstance(i, p.PCB_TEXT)
+                     and i.GetText() == "R1")
+        self.assertGreater(label.GetTextHeight(), mm(.5))
+
+    def test_tiny_pad_only_footprint_gets_thin_fallback(self):
+        fp = next(f for f in self.board.GetFootprints() if f.GetReference() == "J1")
+        fp.SetReference("Q1")
+        pad = next(iter(fp.Pads()))
+        pad.SetShape(p.PAD_SHAPE_RECT)
+        pad.SetSize(point(mm(.05), mm(.04)))
+        pad.SetDrillSize(point(0, 0))
+        generate(self.board, Options(("front",)))
+        label = next(i for i in self.board.GetDrawings() if isinstance(i, p.PCB_TEXT)
+                     and i.GetText() == "Q1")
+        bb = bounds(label)
+        self.assertLess(bb[2] - bb[0], mm(.05))
+        self.assertLess(bb[3] - bb[1], mm(.04))
+
     def test_segment_outline_rotation_and_mirroring(self):
         anchor = point(mm(20), mm(20))
         for angle in (0, 37, 90, 180):

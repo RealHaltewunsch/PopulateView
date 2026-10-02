@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.3
+
+- Skip tiny Fab pin-1 markers when selecting component body outlines.
+- Try courtyard and silkscreen when a candidate has no usable interior area.
+- Use actual pad bounds and proportional rectangle strokes for the fallback.
+- Reproduce and fix Q1 on a 195-footprint board with top/bottom and Gerber checks.
+- Add regression tests for unusable/fit-eligible markers and tiny pad-only footprints.
+
 ## 0.2.2
 
 - Resolve label conflicts with interior decoration inside verified rectangular outlines.

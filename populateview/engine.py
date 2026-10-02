@@ -202,19 +202,24 @@ def simplify_conflicting_details(shapes, label, anchor, angle):
     return [shape for index, shape in enumerate(shapes) if index not in removable]
 
 
+def local_envelope(items, anchor, angle):
+    """Measure detached copies in footprint axes, excluding original fields."""
+    boxes = []
+    for source in items:
+        copy = source.Duplicate()
+        copy.Rotate(anchor, pcb.EDA_ANGLE(-angle, pcb.DEGREES_T))
+        boxes.append(bounds(copy))
+    return (min(b[0] for b in boxes), min(b[1] for b in boxes),
+            max(b[2] for b in boxes), max(b[3] for b in boxes))
+
+
 def fit_label(board, layer, value, shapes, anchor, angle):
     """Fit measured stroke text in the footprint-oriented outline envelope.
 
     Measure in footprint coordinates, not the enlarged world-axis bounding box
     of a rotated component. Both text length and stroke width participate.
     """
-    local = []
-    for shape in shapes:
-        copy = pcb.Cast_to_PCB_SHAPE(shape.Duplicate())
-        copy.Rotate(anchor, pcb.EDA_ANGLE(-angle, pcb.DEGREES_T))
-        local.append(bounds(copy))
-    body = (min(b[0] for b in local), min(b[1] for b in local),
-            max(b[2] for b in local), max(b[3] for b in local))
+    body = local_envelope(shapes, anchor, angle)
     margin = max(s.GetWidth() for s in shapes) + round(
         .08 * min(body[2] - body[0], body[3] - body[1]))
     inner = (body[0] + margin, body[1] + margin,
@@ -267,26 +272,57 @@ def stage_side(board, side, layer, edges, mark_dnp):
     bodies = []
     records = []
     for fp in footprints:
+        pos = fp.GetPosition()
+        anchor = point(2 * centre.x - pos.x if mirror else pos.x, pos.y)
+        angle = fp.GetOrientationDegrees() * (-1 if mirror else 1)
+        label = fp.GetReference() or "?"
+        if mark_dnp and fp.IsDNP():
+            label += " [DNP]"
+        # A tiny Fab pin-1 dot is not a body outline. Compare extents with pads
+        # in the same local axes, without consulting reference/value fields.
+        pads = list(fp.Pads())
+        pad_box = local_envelope(pads, pos, fp.GetOrientationDegrees()) if pads else None
         candidates = list(fp.GraphicalItems())
-        outlines = []
+        shapes = []
         # Fabrication outlines describe the body. Courtyard/silk are fallbacks.
         for source_layer in ((pcb.B_Fab if mirror else pcb.F_Fab),
                              (pcb.B_CrtYd if mirror else pcb.F_CrtYd),
                              (pcb.B_SilkS if mirror else pcb.F_SilkS)):
             outlines = [s for s in candidates if isinstance(s, pcb.PCB_SHAPE)
                         and s.GetLayer() == source_layer]
-            if outlines:
+            if not outlines:
+                continue
+            candidate_shapes = [clone_shape(s, board, layer, centre, mirror) for s in outlines]
+            body = local_envelope(candidate_shapes, anchor, angle)
+            if pad_box and (body[2] - body[0] < .2 * (pad_box[2] - pad_box[0])
+                            or body[3] - body[1] < .2 * (pad_box[3] - pad_box[1])):
+                continue
+            try:
+                fit_label(board, layer, label, candidate_shapes, anchor, angle)
+            except PlanError:
+                # Some footprints provide only an unusable marker on this layer.
+                continue
+            shapes = candidate_shapes
+            if shapes:
                 break
-        shapes = [clone_shape(s, board, layer, centre, mirror) for s in outlines]
         if not shapes:
-            # No library outline: document the physical extent, excluding fields.
-            bb = fp.GetBoundingBox(False, False)
+            # KiCad's footprint bbox has a minimum extent around the anchor.
+            # Use actual pad bounds when available, without this artificial box.
+            if pad_box:
+                fallback = pad_box
+            else:
+                bb = fp.GetBoundingBox(False, False)
+                fallback = (bb.GetX(), bb.GetY(), bb.GetRight(), bb.GetBottom())
             shape = pcb.PCB_SHAPE(board)
             shape.SetShape(pcb.SHAPE_T_RECT)
-            shape.SetStart(bb.GetOrigin())
-            shape.SetEnd(bb.GetEnd())
-            shape.SetWidth(mm(0.15))
+            shape.SetStart(point(fallback[0], fallback[1]))
+            shape.SetEnd(point(fallback[2], fallback[3]))
+            # Keep the documentation rectangle thin enough for tiny footprints.
+            shape.SetWidth(max(1, min(mm(0.15), round(.1 * min(
+                fallback[2] - fallback[0], fallback[3] - fallback[1])))))
             shape.SetLayer(layer)
+            if pad_box:
+                shape.Rotate(pos, pcb.EDA_ANGLE(fp.GetOrientationDegrees(), pcb.DEGREES_T))
             if mirror:
                 shape.Mirror(centre, pcb.FLIP_DIRECTION_LEFT_RIGHT)
             shapes = [shape]
@@ -294,12 +330,6 @@ def stage_side(board, side, layer, edges, mark_dnp):
         body = (min(b[0] for b in boxes), min(b[1] for b in boxes),
                 max(b[2] for b in boxes), max(b[3] for b in boxes))
         bodies.append(body)
-        pos = fp.GetPosition()
-        anchor = point(2 * centre.x - pos.x if mirror else pos.x, pos.y)
-        label = fp.GetReference() or "?"
-        if mark_dnp and fp.IsDNP():
-            label += " [DNP]"
-        angle = fp.GetOrientationDegrees() * (-1 if mirror else 1)
         records.append((label, anchor, shapes, angle))
 
     occupied = []
