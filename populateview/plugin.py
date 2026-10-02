@@ -36,7 +36,8 @@ class PlanDialog(wx.Dialog):
                              "Long references and DNP labels are fitted in full.\n"
                              "Conflicting internal graphics may be omitted in drawings.\n"
                              "Very small labels may require zoom or an enlarged printout.\n"
-                             "Bottom: mirrored component view with readable text.\n"
+                             "Both sides retain the original board coordinates.\n"
+                             "Bottom is not mirrored; text stays readable.\n"
                              "Export only the relevant PopulateView layer,\n"
                              "without extra mirroring or an Edge.Cuts overlay.\n"
                              "Save the board after generating the drawings.")

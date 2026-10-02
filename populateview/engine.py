@@ -1,8 +1,8 @@
 """Generate only board-level documentation graphics, with explicit ownership.
 
 All geometry is staged before mutation. Original footprints are never edited.
-Bottom graphics are reflected about the board's vertical centre line; labels
-are created after reflection so they remain readable in an unmirrored plot.
+Both documentation layers retain the board's coordinates. Bottom graphics are
+not reflected; text is readable in the PCB editor and an unmirrored plot.
 """
 from dataclasses import dataclass
 from pathlib import Path
@@ -100,7 +100,7 @@ def layer_plan(board, sides, replace):
     return plans
 
 
-def clone_shape(source, board, layer, centre, mirror):
+def clone_shape(source, board, layer):
     shape = pcb.Cast_to_PCB_SHAPE(source.Duplicate())
     shape.SetParent(board)
     shape.SetParentGroup(None)
@@ -108,8 +108,6 @@ def clone_shape(source, board, layer, centre, mirror):
         raise PlanError("KiCad did not assign a new object ID when copying a shape.")
     shape.SetLayer(layer)
     shape.SetLocked(False)
-    if mirror:
-        shape.Mirror(centre, pcb.FLIP_DIRECTION_LEFT_RIGHT)
     if shape.GetWidth() <= 0:
         shape.SetWidth(mm(0.15))
     return shape
@@ -265,16 +263,16 @@ def fit_label(board, layer, value, shapes, anchor, angle):
 def stage_side(board, side, layer, edges, mark_dnp):
     box = board.GetBoardEdgesBoundingBox()
     centre = box.GetCenter()
-    mirror = side == "back"
-    items = [clone_shape(s, board, layer, centre, mirror) for s in edges]
-    footprints = [fp for fp in board.GetFootprints() if fp.IsFlipped() == mirror]
+    back = side == "back"
+    items = [clone_shape(s, board, layer) for s in edges]
+    footprints = [fp for fp in board.GetFootprints() if fp.IsFlipped() == back]
     footprints.sort(key=lambda f: f.GetReference())
     bodies = []
     records = []
     for fp in footprints:
         pos = fp.GetPosition()
-        anchor = point(2 * centre.x - pos.x if mirror else pos.x, pos.y)
-        angle = fp.GetOrientationDegrees() * (-1 if mirror else 1)
+        anchor = point(pos.x, pos.y)
+        angle = fp.GetOrientationDegrees()
         label = fp.GetReference() or "?"
         if mark_dnp and fp.IsDNP():
             label += " [DNP]"
@@ -285,14 +283,14 @@ def stage_side(board, side, layer, edges, mark_dnp):
         candidates = list(fp.GraphicalItems())
         shapes = []
         # Fabrication outlines describe the body. Courtyard/silk are fallbacks.
-        for source_layer in ((pcb.B_Fab if mirror else pcb.F_Fab),
-                             (pcb.B_CrtYd if mirror else pcb.F_CrtYd),
-                             (pcb.B_SilkS if mirror else pcb.F_SilkS)):
+        for source_layer in ((pcb.B_Fab if back else pcb.F_Fab),
+                             (pcb.B_CrtYd if back else pcb.F_CrtYd),
+                             (pcb.B_SilkS if back else pcb.F_SilkS)):
             outlines = [s for s in candidates if isinstance(s, pcb.PCB_SHAPE)
                         and s.GetLayer() == source_layer]
             if not outlines:
                 continue
-            candidate_shapes = [clone_shape(s, board, layer, centre, mirror) for s in outlines]
+            candidate_shapes = [clone_shape(s, board, layer) for s in outlines]
             body = local_envelope(candidate_shapes, anchor, angle)
             if pad_box and (body[2] - body[0] < .2 * (pad_box[2] - pad_box[0])
                             or body[3] - body[1] < .2 * (pad_box[3] - pad_box[1])):
@@ -323,8 +321,6 @@ def stage_side(board, side, layer, edges, mark_dnp):
             shape.SetLayer(layer)
             if pad_box:
                 shape.Rotate(pos, pcb.EDA_ANGLE(fp.GetOrientationDegrees(), pcb.DEGREES_T))
-            if mirror:
-                shape.Mirror(centre, pcb.FLIP_DIRECTION_LEFT_RIGHT)
             shapes = [shape]
         boxes = [bounds(s) for s in shapes]
         body = (min(b[0] for b in boxes), min(b[1] for b in boxes),
@@ -345,7 +341,7 @@ def stage_side(board, side, layer, edges, mark_dnp):
         items.append(item)
     title_y = min([box.GetY()] + [b[1] for b in occupied + bodies]) - mm(3)
     items.append(text(board, layer,
-                      "PopulateView - " + ("BOTTOM (component view)" if mirror else "TOP"),
+                      "PopulateView - " + ("BOTTOM (board coordinates)" if back else "TOP"),
                       point(centre.x, title_y), 1.2))
     return items, len(footprints), small_labels
 

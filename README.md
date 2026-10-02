@@ -5,11 +5,11 @@ outlines, readable reference designators and optional DNP markings. Drawings are
 stored directly in the board and can be exported as Gerber files.
 
 Open-source KiCad Action Plugin using the SWIG runtime, with an English interface.
-MIT licensed. Testing release **0.2.3**.
+MIT licensed. Testing release **0.2.4**.
 
 ## Installation
 
-1. Download `PopulateView-0.2.3-pcm.zip` from
+1. Download `PopulateView-0.2.4-pcm.zip` from
    [Releases](https://github.com/RealHaltewunsch/PopulateView/releases).
 2. Open the **Plugin and Content Manager** in the KiCad project manager,
    choose **Install from File** and select the ZIP archive.
@@ -32,6 +32,10 @@ GitHub's source code ZIP is not a PCM installation package.
 5. After layout changes, run the plugin again and select the update/replace option.
    A confirmation explains that manual edits to plugin-owned objects will be lost.
 
+Upgrading from 0.2.3 or earlier: regenerate the bottom drawing with **Update /
+replace existing PopulateView drawings** enabled. Earlier versions mirrored the
+bottom drawing's positions; 0.2.4 keeps them aligned with the original layout.
+
 Available `User.N` layers are automatically enabled and named. Layers with
 custom names or existing content are not allocated. Only the selected sides
 are updated. Each side has its own persistent KiCad group. Unrelated objects
@@ -45,17 +49,24 @@ Select only `PopulateView.Front` and/or `PopulateView.Back`. Depending on the
 KiCad version, the original technical name `User.N` may also be displayed.
 Each layer produces a separate file.
 
-- **Disable mirroring**: the bottom view is already geometrically mirrored.
+- **Disable mirroring** to export both drawings in the original board coordinates.
 - Do not overlay additional common layers, especially `Edge.Cuts`: the correctly
   oriented board outline is already included.
 - Keep references/text enabled in the plot options and use normal filled plotting.
 - Inspect the generated files in GerbView. Name them clearly as assembly drawings
   and distribute them separately from manufacturing copper data.
 
-The bottom view looks directly at the bottom components after flipping the board
-about the vertical centre line of its outline. Component and board outlines are
-mirrored; text remains readable. The bottom drawing therefore does not align as
-an overlay with the original top-view coordinate system.
+Both layers use the original board coordinates and are aligned with the layout
+in the PCB editor. Bottom components are selected from the back of the board,
+but their outlines and text positions are not reflected. For example, a test
+point at X = 207 mm remains at X = 207 mm on `PopulateView.Back`.
+
+The bottom drawing is labelled **BOTTOM (board coordinates)**: it documents the
+back components in the board's top-view coordinate system, not a physically
+flipped component-side view. This release does not create a separate mirrored,
+readable-text component-side export. Simply mirroring an entire Gerber also
+mirrors its lettering; do not use that as a substitute. Communicate the drawing's
+coordinate convention when sharing it with an assembler.
 
 ## Behavior and limitations
 
@@ -137,6 +148,9 @@ On macOS, for the standard installation:
 Tests cover generation, DNP, orientation, update after save/reload, Gerber
 output, serialized layout preservation, foreign-object rejection, missing
 input, transaction failure, side isolation and the dialog-to-generator path.
+Bottom-coordinate regression tests cover asymmetric board outlines, rotated
+footprints, pad-only fallbacks and replacing legacy mirrored bottom drawings
+without changing the front drawing.
 The dialog test supplies the button result programmatically; it does not
 replace a manual visual inspection of the installed menu and GerbView.
 

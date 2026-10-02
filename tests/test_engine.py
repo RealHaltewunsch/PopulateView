@@ -9,7 +9,8 @@ import wx
 APP = wx.App(False)
 import pcbnew as p
 from populateview.engine import (Options, PlanError, generate, mm, point, NAMES,
-                                uid, fit_label, bounds, simplify_conflicting_details)
+                                uid, fit_label, bounds, simplify_conflicting_details,
+                                local_envelope)
 
 
 def fixture(path):
@@ -100,7 +101,7 @@ class EngineTest(unittest.TestCase):
         self.assertEqual(sum("[DNP]" in i.GetText() for i in labels), 2)
         self.assertTrue(all(not i.IsMirrored() for i in labels))
         back_c = next(i for i in labels if i.GetText() == "C1")
-        self.assertAlmostEqual(p.ToMM(back_c.GetPosition().x), 50, places=2)
+        self.assertAlmostEqual(p.ToMM(back_c.GetPosition().x), 20, places=2)
         p.SaveBoard(str(self.path), self.board)
         reloaded = p.LoadBoard(str(self.path))
         generate(reloaded, Options(replace=True))
@@ -198,6 +199,86 @@ class EngineTest(unittest.TestCase):
         ids = {uid(i) for i in back.GetItems()}
         generate(self.board, Options(("front",), replace=True))
         self.assertEqual(ids, {uid(i) for i in back.GetItems()})
+
+    def test_bottom_outline_retains_asymmetric_board_coordinates(self):
+        for edge in list(self.board.GetDrawings()):
+            if edge.GetLayer() == p.Edge_Cuts:
+                self.board.Remove(edge)
+        vertices = [(10, 10), (60, 10), (60, 30), (50, 40), (10, 40)]
+        edges = []
+        for a, b in zip(vertices, vertices[1:] + vertices[:1]):
+            edge = p.PCB_SHAPE(self.board)
+            edge.SetShape(p.SHAPE_T_SEGMENT)
+            edge.SetStart(point(mm(a[0]), mm(a[1])))
+            edge.SetEnd(point(mm(b[0]), mm(b[1])))
+            edge.SetWidth(mm(.05))
+            edge.SetLayer(p.Edge_Cuts)
+            self.board.Add(edge)
+            edges.append(edge)
+        result = generate(self.board, Options(("back",)))
+        copies = [i for i in self.board.GetDrawings() if isinstance(i, p.PCB_SHAPE)
+                  and i.GetLayer() == result["back"]["layer"]
+                  and i.GetShape() == p.SHAPE_T_SEGMENT]
+        endpoints = lambda shapes: sorted((s.GetStart().x, s.GetStart().y,
+                                          s.GetEnd().x, s.GetEnd().y) for s in shapes)
+        self.assertEqual(endpoints(edges), endpoints(copies))
+
+    def test_bottom_labels_keep_position_rotation_and_fallback(self):
+        fp = next(f for f in self.board.GetFootprints() if f.GetReference() == "C1")
+        fp.SetReference("TP1")
+        fp.SetPosition(point(mm(207), mm(87)))
+        for with_outline in (True, False):
+            if not with_outline:
+                for shape in list(fp.GraphicalItems()):
+                    fp.Remove(shape)
+            for angle in (0, 37, 90, 180, -37):
+                for dnp in (False, True):
+                    with self.subTest(outline=with_outline, angle=angle, dnp=dnp):
+                        fp.SetOrientationDegrees(angle)
+                        fp.SetDNP(dnp)
+                        result = generate(self.board, Options(("back",), replace=True))
+                        label = next(i for i in self.board.GetDrawings()
+                                     if isinstance(i, p.PCB_TEXT)
+                                     and i.GetText() == ("TP1 [DNP]" if dnp else "TP1"))
+                        self.assertAlmostEqual(p.ToMM(label.GetPosition().x), 207, places=4)
+                        self.assertAlmostEqual(p.ToMM(label.GetPosition().y), 87, places=4)
+                        self.assertFalse(label.IsMirrored())
+                        local = p.Cast_to_PCB_TEXT(label.Duplicate())
+                        local.Rotate(fp.GetPosition(), p.EDA_ANGLE(-angle, p.DEGREES_T))
+                        source = ([s for s in fp.GraphicalItems() if s.GetLayer() == p.B_Fab]
+                                  if with_outline else list(fp.Pads()))
+                        body = local_envelope(source, fp.GetPosition(), angle)
+                        bb = bounds(local)
+                        self.assertTrue(body[0] <= bb[0] <= bb[2] <= body[2])
+                        self.assertTrue(body[1] <= bb[1] <= bb[3] <= body[3])
+                        if with_outline:
+                            copies = [s for s in self.board.GetDrawings()
+                                      if isinstance(s, p.PCB_SHAPE)
+                                      and s.GetLayer() == result["back"]["layer"]
+                                      and abs(s.GetCenter().x - fp.GetPosition().x) < mm(1)]
+                            self.assertEqual(sorted(bounds(s) for s in source),
+                                             sorted(bounds(s) for s in copies))
+
+    def test_bottom_update_replaces_legacy_mirror_preserves_front(self):
+        generate(self.board, Options())
+        front = next(g for g in self.board.Groups() if g.GetName().endswith("/front"))
+        front_ids = {uid(i) for i in front.GetItems()}
+        back = next(g for g in self.board.Groups() if g.GetName().endswith("/back"))
+        old_ids = {uid(i) for i in back.GetItems()}
+        centre = self.board.GetBoardEdgesBoundingBox().GetCenter()
+        for item in back.GetItems():
+            item.Mirror(centre, p.FLIP_DIRECTION_LEFT_RIGHT)
+        p.SaveBoard(str(self.path), self.board)
+        board = p.LoadBoard(str(self.path))
+        generate(board, Options(("back",), replace=True))
+        front = next(g for g in board.Groups() if g.GetName().endswith("/front"))
+        back = next(g for g in board.Groups() if g.GetName().endswith("/back"))
+        self.assertEqual(front_ids, {uid(i) for i in front.GetItems()})
+        self.assertTrue(old_ids.isdisjoint({uid(i) for i in back.GetItems()}))
+        label = next(i for i in back.GetItems() if isinstance(i, p.PCB_TEXT) and i.GetText() == "C1")
+        self.assertAlmostEqual(p.ToMM(label.GetPosition().x), 20, places=4)
+        self.assertFalse(label.IsMirrored())
+        self.assertEqual(len(list(board.Groups())), 2)
 
     def fitted(self, value, width, height, angle=0):
         anchor = point(mm(20), mm(20))

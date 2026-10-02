@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.4
+
+- Keep bottom drawing shapes, outline and labels in the original board coordinates.
+- Remove the additional reflection and keep text fitted to the actual footprint rotation.
+- Label bottom drawings as board-coordinate documentation, not component-side views.
+- Update English UI and export instructions to state the coordinate convention.
+- Replace legacy mirrored bottom drawings using the existing update option.
+- Add regressions for asymmetric outlines, rotations, pad fallbacks and bottom-only migration.
+
 ## 0.2.3
 
 - Skip tiny Fab pin-1 markers when selecting component body outlines.

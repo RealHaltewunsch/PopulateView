@@ -1,21 +1,26 @@
-## PopulateView 0.2.3 – Fix pin-1 marker outline selection
+## PopulateView 0.2.4 – Keep bottom drawings in board coordinates
 
-Fixes "No usable interior area for label: Q1" on footprints whose fabrication
-layer contains only a tiny pin-1 marker. The plugin now rejects undersized or
-unusable outline candidates and tries courtyard or silkscreen instead.
+Fixes bottom documentation appearing at unexpected positions in the PCB editor.
+`PopulateView.Back` now keeps the original coordinates of the board outline and
+back-side footprints. TP1 at X = 207 mm stays at X = 207 mm rather than being
+reflected to X = 140 mm. Adaptive reference fitting, DNP marking and the Q1
+outline-selection fix remain in place. Original layout data is not modified.
 
-When no usable outline exists, actual pad bounds provide a fallback rectangle
-with an adaptive stroke width. Original footprints, pads, tracks and silkscreen
-are preserved. The interface remains English and the runtime remains SWIG.
+Both documentation layers now align with the layout. Bottom drawings are labelled
+**BOTTOM (board coordinates)** and have readable, unmirrored text. Export without
+mirroring. This is not a physically flipped component-side view; a separate
+mirrored export with readable lettering is not included in this release.
 
-Install `PopulateView-0.2.3-pcm.zip` through **Install from File** in KiCad's
-Plugin and Content Manager, then restart the PCB editor. Enable **Update / replace
-existing PopulateView drawings** and regenerate the affected sides.
-A manual installation ZIP is also available.
+Install `PopulateView-0.2.4-pcm.zip` using **Install from File** in KiCad's Plugin
+and Content Manager and restart the PCB editor. Select **Bottom** or **Both sides**,
+enable **Update / replace existing PopulateView drawings**, and regenerate.
+Existing mirrored drawings from older releases are not automatically migrated;
+the update option replaces them without touching an unselected front drawing.
+A manual-install ZIP is also available.
 
-All 16 integration tests passed with KiCad 10.0.3 on macOS. The reported error
-was reproduced on a copy of the affected 195-footprint board. Both assembly
-drawings (170 top / 25 bottom) and Gerber exports succeeded after the fix.
-Board data used for local testing is not included in the repository or packages.
-KiCad 9 and Windows/Linux remain unverified;
-KiCad 11+ is not supported. See the README for usage and limitations.
+All 19 integration tests passed using KiCad 10.0.3 on macOS, including rotated
+back-side footprints, asymmetric outlines, pad-only fallbacks, legacy-drawing
+migration, layout preservation and Gerber output. Board data used in local
+testing is not included in the repository or packages. KiCad 9 and Windows/Linux
+remain unverified; KiCad 11+ is not supported. The interface remains English and
+the runtime remains SWIG. This is a public testing release.
